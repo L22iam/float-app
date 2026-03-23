@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
 import calendar as cal
+import os
 
 from database import engine, get_db, Base
 from models import User, Expense, RecurringExpense, BugReport
@@ -405,3 +408,17 @@ async def delete_bug(bid: int, admin: User = Depends(require_admin), db: Session
     db.delete(bug)
     db.commit()
     return {"ok": True}
+
+
+# ── Static files (production) ────────────────────────────────
+
+dist_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist")
+if os.path.isdir(dist_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="static")
+
+    @app.get("/{path:path}")
+    async def serve_spa(path: str):
+        file = os.path.join(dist_dir, path)
+        if os.path.isfile(file):
+            return FileResponse(file)
+        return FileResponse(os.path.join(dist_dir, "index.html"))
